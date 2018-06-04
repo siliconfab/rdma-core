@@ -85,3 +85,36 @@ int main(int argc, char *argv[])
 
   set(${TO_VAR} "${HAVE_WORKING_STRICT_ALIASING}" PARENT_SCOPE)
 endfunction()
+
+function(RDMA_Check_SSE TO_VAR)
+  set(SSE_CHECK_PROGRAM "
+    #if defined(__i386__)
+      #include <xmmintrin.h>
+    #endif
+    int main()
+    {
+        #if defined(__i386__)
+        __m128 a, b;
+        float vals[4] = {0};
+        a = _mm_loadu_ps(vals);
+        b = a;
+        b = _mm_add_ps(a,b);
+        _mm_storeu_ps(vals,b);
+        #endif
+        return 0;
+    }")
+
+  CHECK_C_SOURCE_COMPILES("${SSE_CHECK_PROGRAM}" HAVE_SSE_EXTENSIONS)
+
+  if(NOT HAVE_SSE_EXTENSIONS)
+    #Try again but with an SSE flag
+    set(CMAKE_REQUIRED_FLAGS "-msse")
+    CHECK_C_SOURCE_COMPILES("${SSE_CHECK_PROGRAM}" NEED_SSE_FLAG)
+    set(CMAKE_REQUIRED_FLAGS)
+    if(NEED_SSE_FLAG)
+      set(SSE_FLAGS "-msse" PARENT_SCOPE)
+      set(HAVE_SSE_EXTENSIONS 1)
+    endif()
+  endif()
+  set(${TO_VAR} "${HAVE_SSE_EXTENSIONS}" PARENT_SCOPE)
+endFunction()
